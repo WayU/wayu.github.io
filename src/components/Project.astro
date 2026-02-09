@@ -1,0 +1,467 @@
+---
+export interface ImageItem {
+    src: string;
+    caption?: string;
+    alt?: string;
+}
+
+export interface VideoItem {
+    id: string; 
+    caption?: string;
+}
+
+interface Props {
+    title: string;
+    description: string;
+    tstack: string[];
+    repoLink?: string;
+    demoLink?: string;
+    images?: ImageItem[];
+    videos?: VideoItem[];
+}
+
+const { title, description, tstack, repoLink, demoLink, images, videos } = Astro.props;
+
+const hasMultipleImages = images && images.length > 1;
+const hasMultipleVideos = videos && videos.length > 1;
+
+const uniqueID = crypto.randomUUID();
+---
+
+<article class="prj-card" id={`card-${uniqueID}`}>
+    
+    <header class="card-header">
+        <div class="header-top">
+            <h3>{title}</h3>
+            <div class="links">
+                {demoLink && <a href={demoLink} target="_blank" rel="noopener noreferrer">Live ↗</a>}
+                {repoLink && <a href={repoLink} target="_blank" rel="noopener noreferrer">Code ↗</a>}
+            </div>
+        </div>
+        <div class="tags">
+            {tstack.map(tag => <span class="tag">{tag}</span>)}
+        </div>
+    </header>
+
+    <p class="description">{description}</p>
+    
+    <div class="media-stack">
+        
+        { videos && videos.length > 0 && (
+            <div class="video-group">
+                <div class="video-wrapper">
+                    <iframe 
+                        id={`vid-frame-${uniqueID}`}
+                        src={`https://www.youtube-nocookie.com/embed/${videos[0].id}`}
+                        title={videos[0].caption || title}
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowfullscreen
+                        loading="lazy">
+                    </iframe>
+                </div>
+                
+                <p class="caption" id={`vid-caption-${uniqueID}`}>
+                    {videos[0].caption}
+                </p>
+
+                {hasMultipleVideos && (
+                    <div class="video-controls">
+                        {videos.map((vid, index) => (
+                            <button 
+                                class={`vid-btn ${index === 0 ? 'active' : ''}`}
+                                data-vid-id={vid.id}
+                                data-vid-caption={vid.caption || ''}
+                                aria-label={`Play video ${index + 1}`}
+                            >
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                                <span>Video {index + 1}</span>
+                            </button>
+                        ))}
+                    </div>
+                )}
+            </div>
+        )}
+
+        { images && images.length > 0 && (
+            <div class="gallery-group">
+                
+                <div class="main-stage">
+                    {hasMultipleImages && (
+                        <div class="image-badge">
+                            <span class="curr-index">1</span> / {images.length}
+                        </div>
+                    )}
+                    
+                    <div class="slides-track" id={`track-${uniqueID}`}>
+                        {images.map((img, index) => (
+                            <button 
+                                class="slide-btn" 
+                                aria-label={`Expand image ${index + 1}`}
+                                data-full-src={img.src}
+                                data-caption={img.caption || ''}
+                            >
+                                <img 
+                                    src={img.src} 
+                                    alt={img.alt || img.caption || `Screenshot ${index + 1}`} 
+                                    loading="lazy" 
+                                    decoding="async"
+                                />
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                <p class="caption center" id={`img-caption-${uniqueID}`}>
+                    {images[0].caption || '\u00A0'} 
+                </p>
+
+                {hasMultipleImages && (
+                    <div class="thumbs-track">
+                        {images.map((img, index) => (
+                            <button 
+                                class={`thumb-btn ${index === 0 ? 'active' : ''}`} 
+                                aria-label={`Go to image ${index + 1}`}
+                                data-index={index}
+                            >
+                                <img src={img.src} alt="" loading="lazy" decoding="async" />
+                            </button>
+                        ))}
+                    </div>
+                )}
+            </div>
+        )}
+    </div>
+</article>
+
+<dialog class="image-lightbox">
+    <div class="lightbox-wrapper">
+        <button class="close-lightbox" aria-label="Close">✕</button>
+        <img src="" alt="Full preview" class="lightbox-img" />
+        <p class="lightbox-caption"></p> 
+    </div>
+</dialog>
+
+<script define:vars={{ uniqueID }}>
+    (function() {
+        const card = document.getElementById(`card-${uniqueID}`);
+        if (!card) return;
+
+        const vidBtns = card.querySelectorAll('.vid-btn');
+        const vidFrame = document.getElementById(`vid-frame-${uniqueID}`);
+        const vidCaption = document.getElementById(`vid-caption-${uniqueID}`);
+
+        if (vidBtns.length > 0 && vidFrame) {
+            vidBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    vidBtns.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+
+                    const newId = btn.getAttribute('data-vid-id');
+                    vidFrame.src = `https://www.youtube-nocookie.com/embed/${newId}`;
+
+                    if (vidCaption) {
+                        vidCaption.textContent = btn.getAttribute('data-vid-caption');
+                    }
+                });
+            });
+        }
+
+        const track = card.querySelector('.slides-track');
+        const thumbs = card.querySelectorAll('.thumb-btn');
+        const badgeIndex = card.querySelector('.curr-index');
+        const imgCaption = document.getElementById(`img-caption-${uniqueID}`);
+        const slides = card.querySelectorAll('.slide-btn');
+        
+        if (!track || slides.length === 0) return;
+
+        thumbs.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const index = parseInt(btn.getAttribute('data-index'));
+                const scrollAmount = track.clientWidth * index;
+                track.scrollTo({ left: scrollAmount, behavior: 'smooth' });
+            });
+        });
+
+        let isScrolling;
+        track.addEventListener('scroll', () => {
+            window.clearTimeout(isScrolling);
+            
+            isScrolling = setTimeout(() => {
+                const index = Math.round(track.scrollLeft / track.clientWidth);
+                
+                if (badgeIndex) badgeIndex.textContent = index + 1;
+                
+                thumbs.forEach((t, i) => {
+                    t.classList.toggle('active', i === index);
+                });
+
+                if (imgCaption && slides[index]) {
+                    const txt = slides[index].getAttribute('data-caption');
+                    imgCaption.textContent = txt || '\u00A0'; 
+                }
+
+            }, 50); 
+        }, { passive: true });
+    })();
+</script>
+
+<script>
+    function initLightbox() {
+        if (window.lightboxInitialized) return;
+        
+        const dialog = document.querySelector('dialog.image-lightbox');
+        if (!dialog) return;
+
+        const dialogImg = dialog.querySelector('.lightbox-img');
+        const dialogCap = dialog.querySelector('.lightbox-caption');
+        const closeBtn = dialog.querySelector('.close-lightbox');
+
+        document.body.addEventListener('click', (e) => {
+            const btn = e.target.closest('.slide-btn');
+            if (btn) {
+                const src = btn.getAttribute('data-full-src');
+                const cap = btn.getAttribute('data-caption');
+                
+                if (src) {
+                    dialogImg.setAttribute('src', src);
+                    if (dialogCap) dialogCap.textContent = cap || '';
+                    dialog.showModal();
+                    document.body.style.overflow = 'hidden'; 
+                }
+            }
+        });
+
+        const close = () => {
+            dialog.close();
+            document.body.style.overflow = '';
+            setTimeout(() => {
+                dialogImg.setAttribute('src', '');
+                if (dialogCap) dialogCap.textContent = '';
+            }, 200);
+        };
+
+        closeBtn?.addEventListener('click', close);
+        dialog.addEventListener('click', (e) => { if (e.target === dialog) close(); });
+        
+        window.lightboxInitialized = true;
+    }
+
+    initLightbox();
+    document.addEventListener('astro:page-load', initLightbox);
+</script>
+
+<style>
+    .prj-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        padding: 1.5rem;
+        border-radius: 12px;
+        transition: border-color 0.2s, background-color 0.2s;
+    }
+    .prj-card:hover { 
+        border-color: var(--accent); 
+        background: var(--bg-card-hover);
+    }
+
+    .card-header { margin-bottom: 1rem; }
+    
+    .header-top { 
+        display: flex; 
+        justify-content: space-between; 
+        align-items: baseline; 
+        margin-bottom: 0.75rem;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    
+    h3 { 
+        font-size: 1.5rem; 
+        font-weight: 700; 
+        color: var(--text-main); 
+    }
+
+    .links { display: flex; gap: 1rem; }
+    .links a {
+        font-size: 0.85rem;
+        color: var(--accent);
+        text-decoration: none;
+        font-family: var(--font-mono);
+        border-bottom: 1px solid transparent;
+        transition: border-color 0.2s;
+    }
+    .links a:hover { border-bottom-color: var(--accent); }
+
+    .tags { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .tag {
+        font-family: var(--font-mono);
+        font-size: 0.75rem;
+        color: var(--accent);
+        background: var(--accent-glow);
+        padding: 0.25rem 0.75rem;
+        border-radius: 999px;
+    }
+
+    .description { 
+        color: var(--text-muted); 
+        margin-bottom: 1.75rem; 
+        line-height: 1.6; 
+        font-size: 1rem;
+    }
+
+    .media-stack { display: flex; flex-direction: column; gap: 2.5rem; }
+
+    .caption {
+        font-size: 0.9rem;
+        color: var(--text-muted);
+        margin: 0.5rem 0 0 0;
+        min-height: 1.4em; 
+        font-family: var(--font-sans);
+    }
+    .caption.center { text-align: center; }
+
+    .video-group { display: flex; flex-direction: column; gap: 0.5rem; }
+
+    .video-wrapper {
+        position: relative; 
+        padding-bottom: 56.25%;
+        height: 0;
+        border-radius: 8px; 
+        overflow: hidden; 
+        background: #000;
+        border: 1px solid var(--border);
+    }
+    .video-wrapper iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0; }
+
+    .video-controls {
+        display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.25rem;
+    }
+    
+    .vid-btn {
+        background: #2a2a2a;
+        color: var(--text-muted);
+        border: 1px solid var(--border);
+        padding: 6px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.85rem;
+        font-family: var(--font-mono);
+        display: flex; align-items: center; gap: 6px;
+        transition: all 0.2s;
+    }
+    .vid-btn:hover { background: #333; color: var(--text-main); }
+    .vid-btn.active {
+        background: var(--accent-glow);
+        border-color: var(--accent);
+        color: var(--accent);
+    }
+
+    .gallery-group { display: flex; flex-direction: column; gap: 0.5rem; }
+
+    .main-stage {
+        position: relative;
+        border-radius: 8px;
+        overflow: hidden;
+        border: 1px solid var(--border);
+        aspect-ratio: 16/9; 
+        background: #000;
+    }
+
+    .image-badge {
+        position: absolute; bottom: 12px; right: 12px;
+        background: rgba(0,0,0,0.75); color: white;
+        padding: 4px 8px; border-radius: 4px;
+        font-size: 0.75rem; z-index: 10; font-family: var(--font-mono);
+        pointer-events: none; backdrop-filter: blur(4px);
+        border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .slides-track {
+        display: flex; 
+        overflow-x: auto; 
+        scroll-snap-type: x mandatory;
+        scrollbar-width: none; 
+        height: 100%;
+        scroll-behavior: smooth;
+    }
+    .slides-track::-webkit-scrollbar { display: none; }
+
+    .slide-btn {
+        flex: 0 0 100%; width: 100%; 
+        scroll-snap-align: start;
+        border: none; padding: 0; margin: 0; 
+        cursor: zoom-in;
+        position: relative;
+    }
+    .slide-btn::after {
+        content: '🔍';
+        position: absolute;
+        top: 50%; left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 2rem;
+        opacity: 0;
+        transition: opacity 0.2s;
+        pointer-events: none;
+        text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+    }
+    .slide-btn:hover::after { opacity: 1; }
+
+    .slide-btn img { 
+        width: 100%; 
+        height: 100%; 
+        object-fit: cover;
+        display: block; 
+    }
+
+    .thumbs-track { 
+        display: flex; 
+        gap: 0.75rem; 
+        overflow-x: auto; 
+        padding: 4px 0 8px 0; 
+    }
+    
+    .thumb-btn {
+        flex: 0 0 80px; height: 45px; 
+        border: 2px solid transparent; padding: 0;
+        border-radius: 4px; cursor: pointer;
+        opacity: 0.5; transition: all 0.2s; overflow: hidden;
+        background: #000;
+    }
+    .thumb-btn img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .thumb-btn:hover { opacity: 0.8; }
+    .thumb-btn.active { border-color: var(--accent); opacity: 1; }
+
+    dialog.image-lightbox { 
+        border: none; background: transparent; padding: 0; 
+        width: 100%; height: 100%; max-width: 100%; max-height: 100%;
+        outline: none;
+    }
+    dialog.image-lightbox::backdrop { 
+        background: rgba(0, 0, 0, 0.95); 
+        backdrop-filter: blur(5px); 
+    }
+    .lightbox-wrapper { 
+        display: flex; flex-direction: column; 
+        justify-content: center; align-items: center; 
+        width: 100%; height: 100%;
+    }
+    .lightbox-img { 
+        max-width: 95vw; max-height: 85vh; 
+        border-radius: 4px; 
+        box-shadow: 0 10px 50px rgba(0,0,0,0.8); 
+    }
+    .lightbox-caption { 
+        color: #fff; margin-top: 1rem; 
+        font-family: var(--font-sans); 
+        text-align: center; 
+        background: rgba(20,20,20,0.8); 
+        padding: 8px 16px; border-radius: 99px;
+    }
+    .close-lightbox { 
+        position: absolute; top: 20px; right: 20px; 
+        background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.1); 
+        color: #fff; width: 40px; height: 40px; border-radius: 50%;
+        font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center;
+        transition: background 0.2s;
+    }
+    .close-lightbox:hover { background: rgba(255,255,255,0.2); }
+</style>

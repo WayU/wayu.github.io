@@ -1,0 +1,63 @@
+---
+const skills = {
+    languages: ["C++ (17/20)", "C#", "Python", "TypeScript", "Java", "GLSL"],
+    tools: ["Linux (Arch/Debian)", "Git", "CMake", "GDB/Valgrind", "Neovim"],
+    libs: ["Qt 6", "OpenGL", "SDL3", "Box2D", "React/Astro"]
+};
+---
+
+<div class="skills-grid">
+    <div class="skill-cat">
+        <h4>Languages</h4>
+        <ul>
+            {skills.languages.map(s => <li>{s}</li>)}
+        </ul>
+    </div>
+    <div class="skill-cat">
+        <h4>Environment & Tools</h4>
+        <ul>
+            {skills.tools.map(s => <li>{s}</li>)}
+        </ul>
+    </div>
+    <div class="skill-cat">
+        <h4>Libraries & APIs</h4>
+        <ul>
+            {skills.libs.map(s => <li>{s}</li>)}
+        </ul>
+    </div>
+</div>
+
+<style>
+    .skills-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 3rem;
+    }
+
+    .skill-cat {
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        padding: 1.5rem;
+        border-radius: 8px;
+    }
+    .skill-cat:hover {
+        border-color: var(--accent);
+    }
+
+    h4 { 
+        margin-top: 0; 
+        color: var(--text-main); 
+        border-bottom: 1px solid var(--border); 
+        padding-bottom: 0.5rem;
+    }
+
+    ul { list-style: none; padding: 0; margin: 0; }
+    li { 
+        color: var(--text-muted); 
+        margin-bottom: 0.4rem; 
+        font-family: var(--font-mono);
+        font-size: 0.9rem;
+    }
+    li::before { content: "> "; color: var(--accent); }
+</style>
